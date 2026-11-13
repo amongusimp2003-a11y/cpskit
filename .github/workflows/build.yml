@@ -13,10 +13,8 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y fakeroot dpkg clang llvm lld curl unzip make git
-        # İşlək rəsmi ldid binary linki
-        sudo curl -L -o /usr/bin/ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-7/ldid_linux_x86_64
-        sudo chmod +x /usr/bin/ldid
+        # ldid paketini birbaşa Ubuntu rəsmi repozitoriyasından quraşdırırıq (ən təhlükəsiz üsul)
+        sudo apt-get install -y fakeroot dpkg clang llvm lld curl unzip make git ldid
 
     - name: Setup Theos and Toolchain
       run: |
