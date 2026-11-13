@@ -14,7 +14,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y fakeroot dpkg clang curl unzip
-        sudo wget -O /usr/bin/ldid https://github.com/tihmstar/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64 || curl -L -o /usr/bin/ldid https://github.com/tihmstar/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64
+        sudo curl -L -o /usr/bin/ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5/ldid_linux_x86_64
         sudo chmod +x /usr/bin/ldid
 
     - name: Setup Theos
