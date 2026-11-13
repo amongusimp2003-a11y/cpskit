@@ -13,18 +13,24 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y fakeroot dpkg clang curl unzip make git
+        sudo apt-get install -y fakeroot dpkg clang llvm lld curl unzip make git
         sudo curl -L -o /usr/bin/ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5/ldid_linux_x86_64
         sudo chmod +x /usr/bin/ldid
 
-    - name: Setup Theos and Clang Toolchain
+    - name: Setup Theos and Toolchain
       run: |
         git clone --recursive https://github.com/theos/theos.git $HOME/theos
-        # Linux üçün rəsmi Theos toolchain (clang) paketini birbaşa rəsmi mənbədən endiririk
-        git clone https://github.com/theos/toolchain-llvm.git $HOME/theos/toolchain/linux/iphone
+        
+        # Theos-un tələb etdiyi toolchain qovluğunu yaradıb sistem clang-ını bura bağlayırıq
+        mkdir -p $HOME/theos/toolchain/linux/iphone/bin
+        ln -sf /usr/bin/clang $HOME/theos/toolchain/linux/iphone/bin/clang
+        ln -sf /usr/bin/clang++ $HOME/theos/toolchain/linux/iphone/bin/clang++
+        
+        # iOS SDK-larını endiririk
         curl -LO https://github.com/theos/sdks/archive/master.zip
         unzip master.zip
         mv sdks-master/*.sdk $HOME/theos/sdks/
+        
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
         echo "$HOME/theos/bin" >> $GITHUB_PATH
 
