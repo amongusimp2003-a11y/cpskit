@@ -7,9 +7,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: theosdev/devenv:latest
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y fakeroot dpkg clang curl unzip make git
+        sudo curl -L -o /usr/bin/ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5/ldid_linux_x86_64
+        sudo chmod +x /usr/bin/ldid
+
+    - name: Setup Theos and Clang Toolchain
+      run: |
+        git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        # Linux üçün rəsmi Theos toolchain (clang) paketini birbaşa rəsmi mənbədən endiririk
+        git clone https://github.com/theos/toolchain-llvm.git $HOME/theos/toolchain/linux/iphone
+        curl -LO https://github.com/theos/sdks/archive/master.zip
+        unzip master.zip
+        mv sdks-master/*.sdk $HOME/theos/sdks/
+        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+        echo "$HOME/theos/bin" >> $GITHUB_PATH
 
     - name: Build Dylib
       run: |
