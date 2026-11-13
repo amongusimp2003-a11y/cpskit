@@ -17,8 +17,21 @@
     return sharedInstance;
 }
 
+- (UIWindow *)getMainWindow {
+    for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (scene.activationState == UISceneActivationStateForegroundActive) {
+            for (UIWindow *window in scene.windows) {
+                if (window.isKeyWindow) {
+                    return window;
+                }
+            }
+        }
+    }
+    return [UIApplication sharedApplication].windows.firstObject;
+}
+
 - (void)showKeySystem {
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    UIWindow *keyWindow = [self getMainWindow];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Key Verifikasiyası"
                                                                    message:@"Zəhmət olmasa daxil olmaq üçün Key daxil edin:"
                                                             preferredStyle:UIAlertControllerStyleAlert];
@@ -42,7 +55,7 @@
 }
 
 - (void)showMainMenuView {
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    UIWindow *keyWindow = [self getMainWindow];
     UIViewController *rootVC = keyWindow.rootViewController;
     
     UIView *menuView = [[UIView alloc] initWithFrame:CGRectMake(50, 50, 300, 400)];
@@ -62,7 +75,9 @@
 
 __attribute__((constructor)) static void init() {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+        UIWindowScene *scene = (UIWindowScene *)[UIApplication sharedApplication].connectedScenes.anyObject;
+        UIWindow *keyWindow = scene.windows.firstObject;
+        
         UILabel *warningLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 40, keyWindow.bounds.size.width, 20)];
         warningLabel.text = @"Rage cheating is not recommended. Use legit cheats.";
         warningLabel.textColor = [UIColor redColor];
