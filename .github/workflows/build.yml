@@ -2,47 +2,86 @@ name: Build iOS Tweak
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
 
-    - name: Install Dependencies & Correct Ldid
+    # Set env vars once for the run.
+    env:
+      THEOS: ${{ github.workspace }}/theos
+      THEOS_PROJECT_NAME: CopsModMenu   # ← adapt if your Makefile expects a different name
+      MAKEFLAGS: "-j$(nproc)"
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    # 1️⃣ Install the core dependencies (packages Theos itself needs).
+    - name: Install core build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y fakeroot dpkg clang llvm lld curl unzip make git
-        
-        # ldid faylını işlək və birbaşa arxiv linkindən endiririk
-        sudo curl -Lo /usr/bin/ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-2/ldid_linux_x86_64
-        sudo chmod +x /usr/bin/ldid
-        
-        # Yoxlayırıq ki, ldid faylı düzgün endirilib
-        ldid -v || true
+        sudo apt-get install -y \
+          fakeroot dpkg clang lld llvm curl unzip make git \
+          libssl-dev gnupg2          # optional but very common
 
-    - name: Setup Theos and Toolchain
+    # 2️⃣ Install a clean, non‑redirected ldid binary.
+    - name: Install ldid
       run: |
-        git clone --recursive https://github.com/theos/theos.git $HOME/theos
-        
-        mkdir -p $HOME/theos/toolchain/linux/iphone/bin
-        ln -sf /usr/bin/clang $HOME/theos/toolchain/linux/iphone/bin/clang
-        ln -sf /usr/bin/clang++ $HOME/theos/toolchain/linux/iphone/bin/clang++
-        
+        # The iBotPeaches release contains a plain binary that works with Theos.
+        sudo curl -L \
+          https://github.com/iBotPeaches/ldid/releases/download/v2.1.5-2/ldid_linux_x86_64 \
+          -o /usr/local/bin/ldid
+
+        sudo chmod +x /usr/local/bin/ldid
+
+        # Quick sanity check – it should at least print a help message.
+        /usr/local/bin/ldid --help | head -n 3 || true
+
+    # 3️⃣ Fetch and bootstrap Theos + its SDKs.
+    - name: Setup Theos
+      run: |
+        # Clone Theos (recursive to grab submodules)
+        git clone --recursive https://github.com/theos/theos.git "$THEOS"
+
+        # Theos' Linux target expects clang from the system
+        mkdir -p "$THEOS/toolchain/linux/iphone/bin"
+        ln -s /usr/bin/clang   "$THEOS/toolchain/linux/iphone/bin/clang"
+        ln -s /usr/bin/clang++ "$THEOS/toolchain/linux/iphone/bin/clang++"
+
+        # Grab the latest SDK bundle (Theos 9.+ needs it)
         curl -LO https://github.com/theos/sdks/archive/master.zip
         unzip master.zip
-        mv sdks-master/*.sdk $HOME/theos/sdks/
-        
-        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-        echo "$HOME/theos/bin" >> $GITHUB_PATH
+        mv sdks-master/*.sdk "$THEOS/sdks/"
 
-    - name: Build Dylib
+        # Export env vars so theos/build scripts see them
+        echo "THEOS=$THEOS" >> $GITHUB_ENV
+        echo "$THEOS/bin" >> $GITHUB_PATH
+
+    # 4️⃣ Build & package the tweak.
+    - name: Build the tweak
       run: |
+        cd "$THEOS_PROJECT_ROOT"
+        # Clean any old artifacts first (optional)
+        make clean
+        # Build the deb package (or .dylib if you use .DEBIAN)
         make package
 
-    - name: Upload Artifact
+    # 5️⃣ Store the generated .deb (or .dylib) as an artifact.
+    - name: Upload .deb artifact
       uses: actions/upload-artifact@v4
       with:
         name: CopsModMenu
         path: packages/*.deb
+
+  # ----------------------------------------------
+  # OPTIONAL: Show the ldid version/arch if the
+  #   workflow crashes before “Build the tweak”.
+  # ----------------------------------------------
+    - name: Echo ldid binary details (debug)
+      if: failure()
+      run: |
+        echo "File type: $(file /usr/local/bin/ldid)"
+        echo "ldid version: $(/usr/local/bin/ldid --version 2>/dev/null || echo 'not available')"
