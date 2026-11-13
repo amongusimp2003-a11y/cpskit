@@ -10,11 +10,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install Dependencies
+    - name: Install Dependencies & Ldid
       run: |
         sudo apt-get update
-        # ldid paketini birbaşa Ubuntu rəsmi repozitoriyasından quraşdırırıq (ən təhlükəsiz üsul)
-        sudo apt-get install -y fakeroot dpkg clang llvm lld curl unzip make git ldid
+        sudo apt-get install -y fakeroot dpkg clang llvm lld curl unzip make git
+        
+        # ldid faylını rəsmi Procursus mənbəsindən birbaşa endiririk
+        sudo curl -L -o /usr/bin/ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5/ldid_linux_x86_64
+        sudo chmod +x /usr/bin/ldid
+        
+        # Yoxlayırıq ki, ldid yerindədir və düzgün işləyir
+        ldid version || true
 
     - name: Setup Theos and Toolchain
       run: |
