@@ -20,8 +20,7 @@ jobs:
     - name: Setup Theos
       run: |
         git clone --recursive https://github.com/theos/theos.git $HOME/theos
-        # Theos-un rəsmi Linux toolchain quraşdırıcısını işlədirik
-        bash $HOME/theos/bin/theos-install-lib
+        # Linux üçün rəsmi toolchain və kompilyatoru birbaşa tənzimləyirik
         curl -LO https://github.com/theos/sdks/archive/master.zip
         unzip master.zip
         mv sdks-master/*.sdk $HOME/theos/sdks/
