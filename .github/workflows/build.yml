@@ -2,86 +2,69 @@ name: Build iOS Tweak
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Set env vars once for the run.
+    # These are the only env vars you need to hand to Theos.  
+    # THEOS_PROJECT_ROOT must point to the tweak’s root directory.
     env:
-      THEOS: ${{ github.workspace }}/theos
-      THEOS_PROJECT_NAME: CopsModMenu   # ← adapt if your Makefile expects a different name
-      MAKEFLAGS: "-j$(nproc)"
+      THEOS: ${{ github.workspace }}/theos     # location of the Theos installation
+      THEOS_PROJECT_NAME: CopsModMenu        # optional if your Makefile uses this
+      THEOS_PROJECT_ROOT: ${{ github.workspace }}   # ← the key fix
+      MAKEFLAGS: "-j$(nproc)"               # parallelise make
 
     steps:
-    - name: Checkout repo
+    - name: Check out source
       uses: actions/checkout@v4
 
-    # 1️⃣ Install the core dependencies (packages Theos itself needs).
-    - name: Install core build dependencies
+    - name: Install core dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           fakeroot dpkg clang lld llvm curl unzip make git \
-          libssl-dev gnupg2          # optional but very common
+          libssl-dev gnupg2
 
-    # 2️⃣ Install a clean, non‑redirected ldid binary.
     - name: Install ldid
       run: |
-        # The iBotPeaches release contains a plain binary that works with Theos.
+        # Download a binary that Theos can call directly
         sudo curl -L \
           https://github.com/iBotPeaches/ldid/releases/download/v2.1.5-2/ldid_linux_x86_64 \
           -o /usr/local/bin/ldid
-
         sudo chmod +x /usr/local/bin/ldid
-
-        # Quick sanity check – it should at least print a help message.
+        # Quick sanity check
         /usr/local/bin/ldid --help | head -n 3 || true
 
-    # 3️⃣ Fetch and bootstrap Theos + its SDKs.
     - name: Setup Theos
       run: |
-        # Clone Theos (recursive to grab submodules)
+        # Clone Theos, including submodules for the SDK bundle
         git clone --recursive https://github.com/theos/theos.git "$THEOS"
 
-        # Theos' Linux target expects clang from the system
+        # Link clang/clang++ into the Linux target toolchain
         mkdir -p "$THEOS/toolchain/linux/iphone/bin"
         ln -s /usr/bin/clang   "$THEOS/toolchain/linux/iphone/bin/clang"
         ln -s /usr/bin/clang++ "$THEOS/toolchain/linux/iphone/bin/clang++"
 
-        # Grab the latest SDK bundle (Theos 9.+ needs it)
+        # Grab the latest SDK bundle
         curl -LO https://github.com/theos/sdks/archive/master.zip
         unzip master.zip
         mv sdks-master/*.sdk "$THEOS/sdks/"
 
-        # Export env vars so theos/build scripts see them
-        echo "THEOS=$THEOS" >> $GITHUB_ENV
+        # Export path so `make` finds Theos binaries
         echo "$THEOS/bin" >> $GITHUB_PATH
 
-    # 4️⃣ Build & package the tweak.
-    - name: Build the tweak
+    - name: Build the tweak (package)
       run: |
-        cd "$THEOS_PROJECT_ROOT"
-        # Clean any old artifacts first (optional)
+        # We’re already in $GITHUB_WORKSPACE (== THEOS_PROJECT_ROOT)
+        # Clean any previous builds and pack into a .deb
         make clean
-        # Build the deb package (or .dylib if you use .DEBIAN)
         make package
 
-    # 5️⃣ Store the generated .deb (or .dylib) as an artifact.
     - name: Upload .deb artifact
       uses: actions/upload-artifact@v4
       with:
         name: CopsModMenu
         path: packages/*.deb
-
-  # ----------------------------------------------
-  # OPTIONAL: Show the ldid version/arch if the
-  #   workflow crashes before “Build the tweak”.
-  # ----------------------------------------------
-    - name: Echo ldid binary details (debug)
-      if: failure()
-      run: |
-        echo "File type: $(file /usr/local/bin/ldid)"
-        echo "ldid version: $(/usr/local/bin/ldid --version 2>/dev/null || echo 'not available')"
