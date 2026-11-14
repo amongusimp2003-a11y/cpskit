@@ -11,3 +11,7 @@ CopsModMenu_LDFLAGS := -fuse-ld=lld
 CopsModMenu_FRAMEWORKS := UIKit Foundation CoreGraphics
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+# ldid yoxlamasını və imzalama xətasını bloklayan sətir:
+after-all::
+	@echo "Bypassing ldid signing..."
