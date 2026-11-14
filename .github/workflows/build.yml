@@ -3,67 +3,38 @@ name: Build iOS Tweak
 on:
   push:
     branches: [ main ]
-  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    # These are the only env vars you need to hand to Theos.  
-    # THEOS_PROJECT_ROOT must point to the tweak’s root directory.
-    env:
-      THEOS: ${{ github.workspace }}/theos     # location of the Theos installation
-      THEOS_PROJECT_NAME: CopsModMenu        # optional if your Makefile uses this
-      THEOS_PROJECT_ROOT: ${{ github.workspace }}   # ← the key fix
-      MAKEFLAGS: "-j$(nproc)"               # parallelise make
-
     steps:
-    - name: Check out source
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Install core dependencies
+    - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          fakeroot dpkg clang lld llvm curl unzip make git \
-          libssl-dev gnupg2
+        sudo apt-get install -y fakeroot dpkg clang llvm lld curl unzip make git
 
-    - name: Install ldid
+    - name: Setup Theos and Toolchain
       run: |
-        # Download a binary that Theos can call directly
-        sudo curl -L \
-          https://github.com/iBotPeaches/ldid/releases/download/v2.1.5-2/ldid_linux_x86_64 \
-          -o /usr/local/bin/ldid
-        sudo chmod +x /usr/local/bin/ldid
-        # Quick sanity check
-        /usr/local/bin/ldid --help | head -n 3 || true
-
-    - name: Setup Theos
-      run: |
-        # Clone Theos, including submodules for the SDK bundle
-        git clone --recursive https://github.com/theos/theos.git "$THEOS"
-
-        # Link clang/clang++ into the Linux target toolchain
-        mkdir -p "$THEOS/toolchain/linux/iphone/bin"
-        ln -s /usr/bin/clang   "$THEOS/toolchain/linux/iphone/bin/clang"
-        ln -s /usr/bin/clang++ "$THEOS/toolchain/linux/iphone/bin/clang++"
-
-        # Grab the latest SDK bundle
+        git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        
+        mkdir -p $HOME/theos/toolchain/linux/iphone/bin
+        ln -sf /usr/bin/clang $HOME/theos/toolchain/linux/iphone/bin/clang
+        ln -sf /usr/bin/clang++ $HOME/theos/toolchain/linux/iphone/bin/clang++
+        
         curl -LO https://github.com/theos/sdks/archive/master.zip
         unzip master.zip
-        mv sdks-master/*.sdk "$THEOS/sdks/"
+        mv sdks-master/*.sdk $HOME/theos/sdks/
+        
+        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+        echo "$HOME/theos/bin" >> $GITHUB_PATH
 
-        # Export path so `make` finds Theos binaries
-        echo "$THEOS/bin" >> $GITHUB_PATH
-
-    - name: Build the tweak (package)
+    - name: Build Dylib
       run: |
-        # We’re already in $GITHUB_WORKSPACE (== THEOS_PROJECT_ROOT)
-        # Clean any previous builds and pack into a .deb
-        make clean
         make package
 
-    - name: Upload .deb artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: CopsModMenu
