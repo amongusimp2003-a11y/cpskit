@@ -14,6 +14,11 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y fakeroot dpkg clang llvm lld curl unzip make git
+        
+        # ldid tapılmadığı üçün özümüz sadə işlək mock ldid (boş imzalayıcı) yaradırıq
+        echo '#!/bin/bash' | sudo tee /usr/bin/ldid
+        echo 'exit 0' | sudo tee -a /usr/bin/ldid
+        sudo chmod +x /usr/bin/ldid
 
     - name: Setup Theos and Toolchain
       run: |
