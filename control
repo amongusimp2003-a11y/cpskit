@@ -1,0 +1,9 @@
+Package: com.yourname.copsmodmenu
+Name: CopsModMenu
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Critical Ops Mod Menu Tweak
+Maintainer: Mehdi
+Author: Mehdi
+Section: Tweaks
