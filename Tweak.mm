@@ -1,90 +1,132 @@
+#substrate <substrate.h>
 #import <UIKit/UIKit.h>
 
-@interface CopsModMenuManager : NSObject
-+ (instancetype)sharedInstance;
-- (void)showKeySystem;
-- (void)showMainMenuView;
-@end
+// Menyunu idarə etmək üçün qlobal dəyişənlər
+UIWindow *modWindow = nil;
+UIView *modMenu = nil;
+BOOL menuVisible = NO;
 
-@implementation CopsModMenuManager
+// Menyunu və düymələri yaradan əsas funksiya
+void setupModMenu() {
+    if (modWindow) return;
 
-+ (instancetype)sharedInstance {
-    static CopsModMenuManager *sharedInstance = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        sharedInstance = [[self alloc] init];
-    });
-    return sharedInstance;
-}
+    // 1. Pəncərəni yaradırıq (ekranın ən üst qatında - UIWindowLevelAlert + 999)
+    modWindow = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+    modWindow.windowLevel = UIWindowLevelAlert + 999;
+    modWindow.backgroundColor = [UIColor clearColor];
+    modWindow.hidden = NO;
 
-- (UIWindow *)getMainWindow {
-    for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
-        if (scene.activationState == UISceneActivationStateForegroundActive) {
-            for (UIWindow *window in scene.windows) {
-                if (window.isKeyWindow) {
-                    return window;
-                }
-            }
-        }
-    }
-    return [UIApplication sharedApplication].windows.firstObject;
-}
+    // 2. Kliklərin keçməsi üçün xüsusi View controller
+    UIViewController *vc = [[UIViewController alloc] init];
+    modWindow.rootViewController = vc;
 
-- (void)showKeySystem {
-    UIWindow *keyWindow = [self getMainWindow];
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Key Verifikasiyası"
-                                                                   message:@"Zəhmət olmasa daxil olmaq üçün Key daxil edin:"
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    
-    [alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-        textField.placeholder = @"Key-i daxil edin";
-        textField.secureTextEntry = YES;
-    }];
-    
-    UIAlertAction *submitAction = [UIAlertAction actionWithTitle:@"Təsdiq Et" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        UITextField *textField = alert.textFields.firstObject;
-        if ([textField.text isEqualToString:@"rts___721435"]) {
-            [self showMainMenuView];
-        } else {
-            exit(0);
-        }
-    }];
-    
-    [alert addAction:submitAction];
-    [keyWindow.rootViewController presentViewController:alert animated:YES completion:nil];
-}
+    // 3. Əsas Meny পরিস্থিতির Qutusu (UI)
+    modMenu = [[UIView alloc] initWithFrame:CGRectMake(50, 100, 260, 320)];
+    modMenu.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.85];
+    modMenu.layer.cornerRadius = 12;
+    modMenu.layer.borderWidth = 1.5;
+    modMenu.layer.borderColor = [UIColor cyanColor].CGColor;
+    modMenu.hidden = YES; // Başlanğıcda gizli olur
+    [vc.view addSubview:modMenu];
 
-- (void)showMainMenuView {
-    UIWindow *keyWindow = [self getMainWindow];
-    UIViewController *rootVC = keyWindow.rootViewController;
-    
-    UIView *menuView = [[UIView alloc] initWithFrame:CGRectMake(50, 50, 300, 400)];
-    menuView.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.8];
-    menuView.layer.cornerRadius = 10;
-    
-    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 280, 30)];
-    titleLabel.text = @"Critical Ops Mod Menu";
-    titleLabel.textColor = [UIColor whiteColor];
+    // Başlıq yazısı
+    UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 10, 240, 30)];
+    titleLabel.text = @"CRITICAL OPS MOD MENU";
+    titleLabel.textColor = [UIColor cyanColor];
+    titleLabel.font = [UIFont boldSystemFontOfSize:14];
     titleLabel.textAlignment = NSTextAlignmentCenter;
-    [menuView addSubview:titleLabel];
+    [modMenu addSubview:titleLabel];
+
+    // Aimbot düyməsi
+    UISwitch *aimbotSwitch = [[UISwitch alloc] initWithFrame:CGRectMake(180, 60, 0, 0)];
+    [aimbotSwitch addTarget:nil action:@selector(toggleAimbot:) forControlEvents:UIControlEventValueChanged];
     
-    [rootVC.view addSubview:menuView];
+    UILabel *aimbotLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 60, 150, 30)];
+    aimbotLabel.text = @"Aimbot";
+    aimbotLabel.textColor = [UIColor whiteColor];
+    [modMenu addSubview:aimbotLabel];
+    [modMenu addSubview:aimbotSwitch];
+
+    // ESP (Adamların yerini görmə) düyməsi
+    UISwitch *espSwitch = [[UISwitch alloc] initWithFrame:CGRectMake(180, 110, 0, 0)];
+    [espSwitch addTarget:nil action:@selector(toggleESP:) forControlEvents:UIControlEventValueChanged];
+    
+    UILabel *espLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 110, 150, 30)];
+    espLabel.text = @"ESP Box / Line";
+    espLabel.textColor = [UIColor whiteColor];
+    [modMenu addSubview:espLabel];
+    [modMenu addSubview:espSwitch];
+
+    // Skin Changer düyməsi
+    UISwitch *skinSwitch = [[UISwitch alloc] initWithFrame:CGRectMake(180, 160, 0, 0)];
+    [skinSwitch addTarget:nil action:@selector(toggleSkin:) forControlEvents:UIControlEventValueChanged];
+    
+    UILabel *skinLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 160, 150, 30)];
+    skinLabel.text = @"Skin Changer";
+    skinLabel.textColor = [UIColor whiteColor];
+    [modMenu addSubview:skinLabel];
+    [modMenu addSubview:skinSwitch];
+
+    // Bağlamaq düyməsi
+    UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    closeBtn.frame = CGRectMake(70, 260, 120, 35];
+    [closeBtn setTitle:@"Bağla" forState:UIControlStateNormal];
+    [closeBtn setTitleColor:[UIColor redColor] forState:UIControlStateNormal];
+    closeBtn.backgroundColor = [[UIColor redColor] colorWithAlphaComponent:0.2];
+    closeBtn.layer.cornerRadius = 8;
+    [closeBtn addTarget:nil action:@selector(closeMenu:) forControlEvents:UIControlEventTouchUpInside];
+    [modMenu addSubview:closeBtn];
+
+    // 4. Həmişə ekranda üzən (Floating) "MOD" açma/bağlama düyməsi
+    UIButton *floatBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    floatBtn.frame = CGRectMake(20, 50, 65, 35];
+    [floatBtn setTitle:@"MOD" forState:UIControlStateNormal];
+    [floatBtn setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+    floatBtn.backgroundColor = [UIColor cyanColor];
+    floatBtn.layer.cornerRadius = 8;
+    [floatBtn addTarget:nil action:@selector(toggleMenu:) forControlEvents:UIControlEventTouchUpInside];
+    [vc.view addSubview:floatBtn];
 }
 
-@end
-
-__attribute__((constructor)) static void init() {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIWindowScene *scene = (UIWindowScene *)[UIApplication sharedApplication].connectedScenes.anyObject;
-        UIWindow *keyWindow = scene.windows.firstObject;
-        
-        UILabel *warningLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 40, keyWindow.bounds.size.width, 20)];
-        warningLabel.text = @"Rage cheating is not recommended. Use legit cheats.";
-        warningLabel.textColor = [UIColor redColor];
-        warningLabel.font = [UIFont boldSystemFontOfSize:10];
-        warningLabel.textAlignment = NSTextAlignmentCenter;
-        [keyWindow addSubview:warningLabel];
-        
-        [[CopsModMenuManager sharedInstance] showKeySystem];
+// Düymə funksiyaları
+%ctor {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        setupModMenu();
     });
+}
+
+// "MOD" düyməsinə basanda menyunu göstər/gizlət
+%hookf(void, toggleMenu, UIButton *sender) {
+    menuVisible = !menuVisible;
+    modMenu.hidden = !menuVisible;
+}
+
+%hookf(void, closeMenu, UIButton *sender) {
+    menuVisible = NO;
+    modMenu.hidden = YES;
+}
+
+%hookf(void, toggleAimbot, UISwitch *sender) {
+    if (sender.on) {
+        // Aimbot aktivləşdirmə kodu buraya yazılır
+        NSLog(@">> C-Ops: Aimbot Activated");
+    } else {
+        NSLog(@">> C-Ops: Aimbot Deactivated");
+    }
+}
+
+%hookf(void, toggleESP, UISwitch *sender) {
+    if (sender.on) {
+        // ESP aktivləşdirmə kodu buraya yazılır
+        NSLog(@">> C-Ops: ESP Activated");
+    } else {
+        NSLog(@">> C-Ops: ESP Deactivated");
+    }
+}
+
+%hookf(void, toggleSkin, UISwitch *sender) {
+    if (sender.on) {
+        // Skin changer kodu buraya yazılır
+        NSLog(@">> C-Ops: Skin Changer Activated");
+    }
 }
