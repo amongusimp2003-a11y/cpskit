@@ -5,7 +5,6 @@ static UIWindow *modWindow = nil;
 static UIView *modMenu = nil;
 static BOOL menuVisible = NO;
 
-// Düymə funksiyalarının qabaqcadan elanı
 void toggleMenu(UIButton *sender);
 void closeMenu(UIButton *sender);
 void toggleAimbot(UISwitch *sender);
@@ -84,7 +83,6 @@ void setupModMenu() {
     [vc.view addSubview:floatBtn];
 }
 
-// Handle actions via standard Obj-C methods or target selectors
 void toggleMenu(UIButton *sender) {
     menuVisible = !menuVisible;
     modMenu.hidden = !menuVisible;
@@ -117,7 +115,7 @@ void toggleSkin(UISwitch *sender) {
     }
 }
 
-%ctor {
+__attribute__((constructor)) static void initMod() {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         setupModMenu();
     });
